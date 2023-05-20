@@ -1,8 +1,4 @@
-use bevy::{
-    prelude::*,
-    sprite,
-    window::{CursorGrabMode, PresentMode, WindowLevel},
-};
+use bevy::{prelude::*, window::PresentMode};
 
 fn main() {
     App::new()
@@ -26,8 +22,7 @@ fn main() {
 
 #[derive(Component)]
 enum Direction {
-    Up,
-    Down,
+    Up
 }
 
 fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {

@@ -1,13 +1,6 @@
-use std::f64::MIN;
-use std::sync::{Arc, Mutex, RwLock};
+use bevy::sprite::collide_aabb::collide;
 
-use bevy::app::CoreSet::Update;
-use bevy::transform;
-use bevy::{
-    prelude::*,
-    sprite,
-    window::{CursorGrabMode, PresentMode, WindowLevel},
-};
+use bevy::{prelude::*, window::PresentMode};
 use rand::Rng;
 fn main() {
     App::new()
@@ -24,6 +17,7 @@ fn main() {
             }),
             ..default()
         }))
+        .add_event::<CollisionEvent>()
         .add_startup_system(setup)
         .init_resource::<Game>()
         .add_system(sprite_movement)
@@ -31,13 +25,13 @@ fn main() {
         .add_system(mouse_click_system)
         .add_system(animate_sprite)
         .add_system(bird_movement)
+        .add_system(check_for_collisions)
         .run();
 }
 
 #[derive(Component)]
 enum Direction {
     Up,
-    Down,
 }
 
 #[derive(Component, PartialEq, Eq)]
@@ -48,6 +42,9 @@ enum ObjectTag {
 }
 
 #[derive(Component)]
+struct Collider;
+
+#[derive(Component)]
 struct AnimationIndices {
     first: usize,
     last: usize,
@@ -56,7 +53,7 @@ struct AnimationIndices {
 struct Bird {
     speed: f32,
     acc: f32,
-    accRotation: f32,
+    acc_rotation: f32,
     gohell: bool,
 }
 #[derive(Default)]
@@ -67,23 +64,32 @@ struct PipePart {
 struct Pipe {
     upper: PipePart,
     below: PipePart,
+    idx: i32,
 }
 #[derive(Resource, Default)]
 struct Game {
     pipes: Vec<Pipe>,
     state: i32,
+    score: i32,
+    current_inc: i32,
 }
+
+#[derive(Default)]
+struct CollisionEvent;
+
+#[derive(Component)]
+struct ScoreText;
 
 #[derive(Component, Deref, DerefMut)]
 struct AnimationTimer(Timer);
 
 const GROUND_HEIGHT: f32 = 121.0;
-const WIDTH_BACKGROUND: f32 = 736.0;
+//const WIDTH_BACKGROUND: f32 = 736.0;
 const HALF_WIDTH_BACKGROUND: f32 = 736.0 / 2.0;
 const HEIGHT_SCREEN: f32 = 576.0;
-const DISTANCE_BETWEEN_UP_DOWN_PIPES: f32 = 100.0;
+const DISTANCE_BETWEEN_UP_DOWN_PIPES: f32 = 160.0;
 const HEIGHT_PIPE: f32 = 319.0;
-const DISTANCE_X_BETWEEN_PIPE: f32 = 200.0;
+const DISTANCE_X_BETWEEN_PIPE: f32 = 300.0;
 const MIN_SCREEN: f32 = -552.0;
 const BIRTH_HEIGHT: f32 = 26.0;
 fn animate_sprite(
@@ -181,7 +187,7 @@ fn setup(
     }
 
     for x in 0..6 {
-        let top_below_pipe = rand::thread_rng().gen_range(-36..36);
+        let top_below_pipe = rand::thread_rng().gen_range(-100..-50);
 
         let y_below_pipe = top_below_pipe as f32 - HEIGHT_PIPE / 2.0;
         let y_above_pipe =
@@ -208,6 +214,7 @@ fn setup(
                 },
                 Direction::Up,
                 ObjectTag::Pipe,
+                Collider,
             ))
             .id();
 
@@ -233,6 +240,7 @@ fn setup(
                 },
                 Direction::Up,
                 ObjectTag::Pipe,
+                Collider,
             ))
             .id();
         game.pipes.push(Pipe {
@@ -242,47 +250,10 @@ fn setup(
             upper: PipePart {
                 entity: Some(upper),
             },
+            idx: x + 1,
         });
+        game.current_inc += 1;
     }
-
-    // commands.spawn(PipeCouple {
-    //     below: Pipe {
-    //         sprite_bundle: SpriteBundle {
-    //             texture: asset_server.load("image/pipe2.png"),
-    //             transform: Transform {
-    //                 // We need to convert our Vec2 into a Vec3, by giving it a z-coordinate
-    //                 // This is used to determine the order of our sprites
-    //                 translation: Vec3::new((x as f32 + 1.0) * 200.0, y_below_pipe, 0.5),
-    //                 // The z-scale of 2D objects must always be 1.0,
-    //                 // or their ordering will be affected in surprising ways.
-    //                 // See https://github.com/bevyengine/bevy/issues/4149
-    //                 scale: Vec3::new(1.0, 1.0, 1.0),
-    //                 ..default()
-    //             },
-    //             ..default()
-    //         },
-    //         direction: Direction::Up,
-    //         object_tag: ObjectTag::Pipe,
-    //     },
-    //     upper: Pipe {
-    //         sprite_bundle: SpriteBundle {
-    //             texture: asset_server.load("image/pipe2.png"),
-    //             transform: Transform {
-    //                 // We need to convert our Vec2 into a Vec3, by giving it a z-coordinate
-    //                 // This is used to determine the order of our sprites
-    //                 translation: Vec3::new((x as f32 + 1.0) * 200.0, y_above_pipe, 0.5),
-    //                 // The z-scale of 2D objects must always be 1.0,
-    //                 // or their ordering will be affected in surprising ways.
-    //                 // See https://github.com/bevyengine/bevy/issues/4149
-    //                 scale: Vec3::new(1.0, -1.0, 1.0),
-    //                 ..default()
-    //             },
-    //             ..default()
-    //         },
-    //         direction: Direction::Up,
-    //         object_tag: ObjectTag::Pipe,
-    //     },
-    // });
 
     let texture_handle = asset_server.load("image/bird.png");
     let texture_atlas =
@@ -303,19 +274,43 @@ fn setup(
         Bird {
             speed: 200.0,
             acc: -5.0,
-            accRotation: -60.0,
+            acc_rotation: -60.0,
             gohell: false,
         },
         ObjectTag::Bird,
+        Collider,
+    ));
+
+    commands.spawn((
+        // Create a TextBundle that has a Text with a single section.
+        TextBundle::from_section(
+            // Accepts a `String` or any type that converts into a `String`, such as `&str`
+            "0",
+            TextStyle {
+                font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                font_size: 70.0,
+                color: Color::MIDNIGHT_BLUE,
+            },
+        ) // Set the alignment of the Text
+        .with_text_alignment(TextAlignment::Center)
+        // Set the style of the TextBundle itself.
+        .with_style(Style {
+            position_type: PositionType::Absolute,
+
+            ..default()
+        }),
+        ScoreText,
     ));
 }
 
 fn sprite_movement(
     time: Res<Time>,
-    mut sprite_position: Query<(&mut ObjectTag, &mut Transform)>,
+    mut bird_transform: Query<(&mut Bird, &mut Transform), With<Bird>>,
+    mut sprite_position: Query<(&mut ObjectTag, &mut Transform), Without<Bird>>,
     mut game: ResMut<Game>,
+    mut text_query: Query<&mut Text, With<ScoreText>>,
 ) {
-    if game.state == 0 {
+    if game.state == 1 {
         let mut max_background_x = -1000.0;
         let mut max_pipe_x: f32 = -1000.0;
 
@@ -340,13 +335,13 @@ fn sprite_movement(
                 position.translation.x = max_background_x + HALF_WIDTH_BACKGROUND;
             }
         }
-
+        let game = &mut *game;
         for pipe in game.pipes.iter_mut() {
             if let (Some(upper_entity), Some(below_entity)) = (pipe.upper.entity, pipe.below.entity)
             {
                 if let Ok(mut upper) = sprite_position.get_mut(upper_entity) {
                     if upper.1.translation.x < MIN_SCREEN {
-                        let top_below_pipe = rand::thread_rng().gen_range(-36..36);
+                        let top_below_pipe = rand::thread_rng().gen_range(-100..-50);
 
                         let y_below_pipe = top_below_pipe as f32 - HEIGHT_PIPE / 2.0;
                         let y_above_pipe = top_below_pipe as f32
@@ -359,28 +354,24 @@ fn sprite_movement(
                             below.1.translation.x = max_pipe_x + DISTANCE_X_BETWEEN_PIPE;
                             below.1.translation.y = y_below_pipe;
                         }
+                        game.current_inc = game.current_inc + 1;
+                        pipe.idx = game.current_inc;
                     }
                 }
+            }
+        }
 
-                // let mut upper =
-                //     match sprite_position.get_mut(upper_entity)
-                //     {
-                //         Ok(x) => x.1,
-                //         _ => continue
-                //     };
-                //     let mut below =
-                //     match sprite_position.get_mut(below_entity)
-                //     {
-                //         Ok(x) => x.1,
-                //         _ => continue
-                //     };
-
-                //     {
-                //     if upper.translation.x < MIN_SCREEN {
-                //         upper.translation.x =  max_background_x + HALF_WIDTH_BACKGROUND;
-                //         below.translation.x =  max_background_x + HALF_WIDTH_BACKGROUND;
-                //     }
-                // }
+        let (_bird, bird_transform) = bird_transform.single_mut();
+        for pipe in game.pipes.iter_mut() {
+            if let Some(upper_entity) = pipe.upper.entity {
+                if let Ok(upper) = sprite_position.get(upper_entity) {
+                    if upper.1.translation.x < bird_transform.translation.x && game.score < pipe.idx
+                    {
+                        game.score = pipe.idx;
+                        let mut text = text_query.single_mut();
+                        text.sections[0].value = format!("{}", game.score);
+                    }
+                }
             }
         }
     }
@@ -392,10 +383,10 @@ fn bird_movement(
     mut game: ResMut<Game>,
 ) {
     let (mut bird, mut transform) = transforms.single_mut();
-    if game.state == 0 && !bird.gohell {
+    if (game.state == 1 || game.state == 2) && !bird.gohell {
         bird.speed += bird.acc;
         transform.translation.y += bird.speed * time.delta_seconds();
-        transform.rotate_z(f32::to_radians(bird.accRotation * time.delta_seconds()));
+        transform.rotate_z(f32::to_radians(bird.acc_rotation * time.delta_seconds()));
         if transform.rotation.z <= f32::to_radians(-90.0) {
             transform.rotation.z = f32::to_radians(-90.0);
         }
@@ -407,9 +398,36 @@ fn bird_movement(
 
         if transform.translation.y - BIRTH_HEIGHT / 2.0 <= -HEIGHT_SCREEN / 2.0 + GROUND_HEIGHT {
             bird.gohell = true;
-            game.state = 1;
+            game.state = 3;
         }
         //println!("bird transform: {:?}, {:?}",bird, transform.rotation.to_euler(EulerRot::XYZ));
+    }
+}
+
+fn check_for_collisions(
+    mut game: ResMut<Game>,
+    mut bird_query: Query<(&mut Bird, &mut Transform), With<Bird>>,
+    collider_query: Query<(Entity, &Transform), (With<Collider>, Without<Bird>)>,
+    mut collision_events: EventWriter<CollisionEvent>,
+) {
+    let (mut ball_velocity, mut ball_transform) = bird_query.single_mut();
+
+    // check collision with walls
+    for (_collider_entity, transform) in &collider_query {
+        let collision = collide(
+            ball_transform.translation,
+            Vec2::new(26.0, 26.0),
+            transform.translation,
+            Vec2::new(54.0, 319.0),
+        );
+        if let Some(_collision) = collision {
+            // Sends a collision event so that other systems can react to the collision
+            collision_events.send_default();
+            ball_velocity.speed = -300.0;
+            ball_transform.rotation = Quat::from_rotation_z(f32::to_radians(-90.0));
+            game.state = 2;
+            break;
+        }
     }
 }
 
@@ -441,14 +459,18 @@ fn touch_system(touches: Res<Touches>) {
     }
 }
 
-fn mouse_click_system(mouse_button_input: Res<Input<MouseButton>>, mut transforms: Query<(&mut Bird, &mut Transform), With<Bird>>, mut game: ResMut<Game>,) {
-    let (mut bird, mut transform) = transforms.single_mut();    
-    if game.state == 0 && !bird.gohell {
-
+fn mouse_click_system(
+    mouse_button_input: Res<Input<MouseButton>>,
+    mut transforms: Query<(&mut Bird, &mut Transform), With<Bird>>,
+    mut game: ResMut<Game>,
+) {
+    let (mut bird, mut transform) = transforms.single_mut();
+    if (game.state == 0 || game.state == 1) && !bird.gohell {
         if mouse_button_input.pressed(MouseButton::Left) {
-           bird.speed = 200.0;
-           transform.rotation =  Quat::from_rotation_z(f32::to_radians(60.0));
-           println!("bird click: {:?}",f32::to_radians(60.0));
+            bird.speed = 200.0;
+            transform.rotation = Quat::from_rotation_z(f32::to_radians(60.0));
+            game.state = 1;
+            //println!("bird click: {:?}",f32::to_radians(60.0));
         }
     }
 }

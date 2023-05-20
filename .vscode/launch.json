@@ -1,120 +1,114 @@
 {
-    "version": "0.2.0",
-    "configurations": [
-        {
-            "type": "lldb",
-            "request": "launch",
-            "name": "Debug executable 'my_bevy_game'",
-            "env": {
-                "PATH": "${env:RUSTUP_HOME}/toolchains/stable-x86_64-pc-windows-msvc/bin;${workspaceFolder}/target/debug/deps;${env:PATH}",
-            },
-            "cargo": {
-                "args": [
-                    "build",
-                    "--bin=my_bevy_game",
-                    "--package=my_bevy_game",
-                    "--features=bevy/dynamic_linking"
-                ],
-                "filter": {
-                    "name": "my_bevy_game",
-                    "kind": "bin"
-                }
-            },
-            "args": [],
-            "cwd": "${workspaceFolder}"
-        },
-        {
-            "type": "lldb",
-            "request": "launch",
-            "name": "Debug unit tests in executable 'my_bevy_game'",
-            "cargo": {
-                "args": [
-                    "test",
-                    "--no-run",
-                    "--bin=my_bevy_game",
-                    "--package=my_bevy_game"
-                ],
-                "filter": {
-                    "name": "my_bevy_game",
-                    "kind": "bin"
-                }
-            },
-            "args": [],
-            "cwd": "${workspaceFolder}"
-        },
-        {
-            "type": "lldb",
-            "request": "launch",
-            "name": "Debug example 'sprite'",
-            "cargo": {
-                "args": [
-                    "build",
-                    "--example=sprite",
-                    "--package=my_bevy_game"
-                ],
-                "filter": {
-                    "name": "sprite",
-                    "kind": "example"
-                }
-            },
-            "args": [],
-            "cwd": "${workspaceFolder}"
-        },
-        {
-            "type": "lldb",
-            "request": "launch",
-            "name": "Debug unit tests in example 'sprite'",
-            "cargo": {
-                "args": [
-                    "test",
-                    "--no-run",
-                    "--example=sprite",
-                    "--package=my_bevy_game"
-                ],
-                "filter": {
-                    "name": "sprite",
-                    "kind": "example"
-                }
-            },
-            "args": [],
-            "cwd": "${workspaceFolder}"
-        },
-        {
-            "type": "lldb",
-            "request": "launch",
-            "name": "Debug example 'other'",
-            "cargo": {
-                "args": [
-                    "build",
-                    "--example=other",
-                    "--package=my_bevy_game"
-                ],
-                "filter": {
-                    "name": "other",
-                    "kind": "example"
-                }
-            },
-            "args": [],
-            "cwd": "${workspaceFolder}"
-        },
-        {
-            "type": "lldb",
-            "request": "launch",
-            "name": "Debug unit tests in example 'other'",
-            "cargo": {
-                "args": [
-                    "test",
-                    "--no-run",
-                    "--example=other",
-                    "--package=my_bevy_game"
-                ],
-                "filter": {
-                    "name": "other",
-                    "kind": "example"
-                }
-            },
-            "args": [],
-            "cwd": "${workspaceFolder}"
+  "version": "0.2.0",
+  "configurations": [
+
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug executable 'my_bevy_game'",
+      "env": {
+        "PATH": "${env:RUSTUP_HOME}/toolchains/stable-x86_64-pc-windows-msvc/bin;${workspaceFolder}/target/debug/deps;${env:PATH}",
+        "CARGO_MANIFEST_DIR": "${workspaceFolder}"
+      },
+      "cargo": {
+        "args": [
+          "build",
+          "--bin=my_bevy_game",
+          "--package=my_bevy_game",
+          "--features=bevy/dynamic_linking"
+        ],
+        "filter": {
+          "name": "my_bevy_game",
+          "kind": "bin"
         }
-    ]
+      },
+      "args": [],
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug unit tests in executable 'my_bevy_game'",
+      "cargo": {
+        "args": [
+          "test",
+          "--no-run",
+          "--bin=my_bevy_game",
+          "--package=my_bevy_game"
+        ],
+        "filter": {
+          "name": "my_bevy_game",
+          "kind": "bin"
+        }
+      },
+      "args": [],
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug example 'sprite'",
+      "cargo": {
+        "args": ["build", "--example=sprite", "--package=my_bevy_game"],
+        "filter": {
+          "name": "sprite",
+          "kind": "example"
+        }
+      },
+      "args": [],
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug unit tests in example 'sprite'",
+      "cargo": {
+        "args": [
+          "test",
+          "--no-run",
+          "--example=sprite",
+          "--package=my_bevy_game"
+        ],
+        "filter": {
+          "name": "sprite",
+          "kind": "example"
+        }
+      },
+      "args": [],
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug example 'other'",
+      "cargo": {
+        "args": ["build", "--example=other", "--package=my_bevy_game"],
+        "filter": {
+          "name": "other",
+          "kind": "example"
+        }
+      },
+      "args": [],
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug unit tests in example 'other'",
+      "cargo": {
+        "args": [
+          "test",
+          "--no-run",
+          "--example=other",
+          "--package=my_bevy_game"
+        ],
+        "filter": {
+          "name": "other",
+          "kind": "example"
+        }
+      },
+      "args": [],
+      "cwd": "${workspaceFolder}"
+    }
+  ]
 }

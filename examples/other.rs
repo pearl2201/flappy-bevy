@@ -1,8 +1,8 @@
 use bevy::prelude::*;
 
-fn hello_world() {
-    println!("hello world!");
-}
+// fn hello_world() {
+//     println!("hello world!");
+// }
 
 #[derive(Component)]
 struct Person;
